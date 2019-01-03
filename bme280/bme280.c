@@ -1,6 +1,6 @@
 /**
  * 使用BCM2835库操作BOSCH的温湿度压强三合一传感器
- * 2010/01/02 Byron Gong
+ * 2019/01/02 Byron Gong
  * 
  * 编译:
  *     gcc ./bme280.c -o bme280 -lbcm2835
