@@ -243,25 +243,148 @@
 /**
  * 配置公共端口属性
  * 
+ * 命令格式:
+ *      CMD_HARD_COM_CONFIG
+ *      A ==> 命令序列 0 0 A5 A4 0 0 1 0
+ *          A5 => 0:禁用公共端口左右交换(默认)  1:公共端口左右交换
+ *          A4 => 0:连续 1:间隔(默认)
  */
 #define CMD_HARD_COM_CONFIG 0xDA
 
 /** 硬件设定命令 **************************************************************/
 
+/**
+ * 时钟设定
+ * 
+ * 命令格式:
+ *      CMD_TIME_CLOCK
+ *      A ==> A7 A6 A5 A4 A3 A2 A1 A0
+ *          A[3:0] 分频计数器,显示频率=时钟频率/(设定值+1),取值范围 0-15(1-16的时钟周期) 默认 0
+ *          A[7:4] 时钟周期,值越大频率越高,取值范围 0-15(1-16) 默认 (0x8 << 4)
+ */
+#define CMD_TIME_CLOCK 0xD5
+
+/**
+ * 供电时间设置
+ * 
+ * 命令格式:
+ *      CMD_POWER_PRECHARGE
+ *      A ==> A7 A6 A5 A4 A3 A2 A1 A0
+ *          A[3:0] 第一阶段供电时钟周期数,取值范围 1-15 默认 2
+ *          A[7:4] 第二阶段供电时钟周期数,取值范围 1-15 默认 2
+ */
+#define CMD_POWER_PRECHARGE 0xD9
+
+/**
+ * 电压设定参数
+ */
+#define VOLTAGE_0_DOT_65X 0x00
+#define VOLTAGE_0_DOT_77X 0x20
+#define VOLTAGE_0_DOT_83X 0x30
+
+/**
+ * 电压设定
+ * 
+ * 命令格式:
+ *      CMD_POWER_VOLTAGE
+ *      A ==> 电压值,默认VOLTAGE_0_DOT_77X 0.77Vcc
+ */
+#define CMD_POWER_VOLTAGE 0xDB
+
+/**
+ * 空指令
+ */
+#define CMD_NOP 0xE3
+/** 时钟/供电设定命令 *********************************************************/
+
+/**
+ * 读取命令状态指示
+ */
+#define CMD_READ_DISPLAY_ON     0x00
+#define CMD_READ_DISPLAY_OFF    0x40
+
+/**
+ * 写入一个命令
+ */
 void writeCommand(uint8_t cmd){
     uint8_t data[2]={0};
-    data[0]=0x40;
+    data[0]=0x00;
     data[1]=cmd;
     bcm2835_i2c_write(data,2);
 }
 
+/**
+ * 写入一个数据
+ */
 void writeData(uint8_t data){
     uint8_t temp[2]={0};
-    temp[0]=0x00;
+    temp[0]=0x40;
     temp[1]=data;
     bcm2835_i2c_write(temp,2);
 }
 
-int main(void){
+/**
+ * 初始I2C设定
+ */
+void initDevice(){
+    bcm2835_i2c_set_baudrate(100000);
+    bcm2835_i2c_setSlaveAddress(SSD1306_I2C_ADDR);
+}
 
+void init(){
+    //关闭屏幕
+    writeCommand(CMD_DISPLAY_OFF);
+    //内存地址模式
+    writeCommand(CMD_ADDR_MODE);
+    writeCommand(MODE_PAGE);
+    //段模式起始地址
+    writeCommand(CMD_ADDR_PAGE_START_0);
+    //设置扫描方向
+    writeCommand(CMD_HARD_SCAN_DIRECT_INVERSE);
+    //设置列数据写入起始位置
+    writeCommand(CMD_ADDR_COL_START_LOW_MASK);
+    writeCommand(CMD_ADDR_COL_START_HIGH_MASK);
+    //设置显示初始地址
+    writeCommand(CMD_HARD_START_LINE_MASK);
+    //设置对比度
+    writeCommand(CMD_DISPLAY_CONTRAST);
+    writeCommand(0x7f);
+    //设置列反转
+    writeCommand(CMD_HARD_MAP_COL_0);
+    //设置显示模式
+    writeCommand(CMD_DISPLAY_NORMAL);
+    //设置复用率
+    writeCommand(CMD_HARD_MUX);
+    writeCommand(0x3F);
+    //显示内存信息
+    writeCommand(CMD_DISPLAY_ALL);
+    // writeCommand(CMD_DISPLAY_RAM);
+    //设置显示行偏移
+    writeCommand(CMD_HARD_VERTICAL_OFFSET);
+    writeCommand(0x00);
+    //设置分频率
+    writeCommand(CMD_TIME_CLOCK);
+    writeCommand(0xF0);
+    //设置电源
+    writeCommand(CMD_POWER_PRECHARGE);
+    writeCommand(0x22);
+    //设置输出引脚
+    writeCommand(CMD_HARD_COM_CONFIG);
+    writeCommand(0x12);
+    //设置电压
+    writeCommand(CMD_POWER_VOLTAGE);
+    writeCommand(VOLTAGE_0_DOT_77X);
+    //点亮屏幕
+    writeCommand(CMD_DISPLAY_ON);
+}
+
+int main(void){
+    bcm2835_init();
+    bcm2835_i2c_begin();
+
+    initDevice();
+    init();
+
+    bcm2835_i2c_end();
+    bcm2835_close();
 }
