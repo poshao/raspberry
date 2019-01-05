@@ -1,307 +1,15 @@
-#include <bcm2835.h>
-#include <stdio.h>
-
-//调试模式
-#define SSD1306_DEBUG
-#define SSD1306_I2C_ADDR 0x3C
-
 /**
- * 功能命令
- */
-
-/**
- * 显示屏幕
- */
-#define CMD_DISPLAY_ON 0xAF
-
-/**
- * 关闭屏幕
- */
-#define CMD_DISPLAY_OFF 0xAE
-
-/**
- * 正常显示
- */
-#define CMD_DISPLAY_NORMAL 0xA6
-
-/**
- * 反转显示
- */
-#define CMD_DISPLAY_INVERSE 0xA7
-
-/**
- * 根据内存点亮
- */
-#define CMD_DISPLAY_RAM 0xA4
-
-/**
- * 全屏点亮
- */
-#define CMD_DISPLAY_ALL 0xA5
-
-/**
- * 对比度设定(双字节命令) 
- * 1 - 256级(默认 0x7F)
- * 示例: 0x81 0x7F
- */
-#define CMD_DISPLAY_CONTRAST 0x81
-
-/** 屏幕显示类命令 ************************************************************/
-
-/**
- * 段偏移参数
- */
-#define SCROLL_PAGE_MASK 0x00
-#define SCROLL_PAGE0 0x00
-#define SCROLL_PAGE1 0x01
-#define SCROLL_PAGE2 0x02
-#define SCROLL_PAGE3 0x03
-#define SCROLL_PAGE4 0x04
-#define SCROLL_PAGE5 0x05
-#define SCROLL_PAGE6 0x06
-#define SCROLL_PAGE7 0x07
-
-/**
- * 帧数参数
- */
-#define SCROLL_FRAME_5      0x00
-#define SCROLL_FRAME_64     0x01
-#define SCROLL_FRAME_128    0x02
-#define SCROLL_FRAME_256    0x03
-#define SCROLL_FRAME_3      0x04
-#define SCROLL_FRAME_4      0x05
-#define SCROLL_FRAME_25     0x06
-#define SCROLL_FRAME_2      0x07
-
-
-/**
- * 水平移动特效设置
+ * 使用BCM2835库操作 0.96 OLED 基础操作库
+ * 2019/01/05 Byron Gong
  * 
- * 命令格式：
- *      CMD_SCROLL_RIGHT/CMD_SCROLL_LEFT
- *      A ==> 固定(0x00)
- *      B ==> 起始段地址, 如 SCROLL_PAGE0
- *      C ==> 帧率, 如 SCROLL_FRAME_5
- *      D ==> 结束段地址(需大于等于段起始地址), 如 SCROLL_PAGE0
- *      E ==> 固定(0x00)
- *      F ==> 固定(0xFF)
- * 示例:
- *      {CMD_SCROLL_RIGHT,0x00,SCROLL_PAGE0,SCROLL_FRAME_5,SCROLL_PAGE1,0x00,0xFF}
- *      从段0到段1区域以5帧(列)每秒的速度向右移动
+ * 编译:
+ *     gcc ./ssd1306.c -o oled -lbcm2835
+ * 运行:
+ *     sudo ./oled
  */
-#define CMD_SCROLL_RIGHT 0x26
-#define CMD_SCROLL_LEFT 0x27
+#include "ssd1306.h"
 
-/**
- * 水平向下移动
- * 
- * 命令格式:
- *      CMD_SCROLL_DOWN_RIGHT/CMD_SCROLL_DOWN_LEFT
- *      A ==> 固定(0x00)
- *      B ==> 起始段地址, 如 SCROLL_PAGE0
- *      C ==> 帧率, 如 SCROLL_FRAME_5
- *      D ==> 结束段地址(需大于等于段起始地址), 如 SCROLL_PAGE0
- *      E ==> 纵向偏移值, 取值范围 0x01(偏移1行) - 0x3F(偏移63行)
- * 示例:
- *      {CMD_SCROLL_DOWN_RIGHT,0x00,SCROLL_PAGE0,SCROLL_FRAME_5,SCROLL_PAGE1,0x02}
- *      从段0到段1区域以5帧(列)每秒的速度向右移动,并以10行(5*2)每秒的速度向下移动
- */
-#define CMD_SCROLL_DOWN_RIGHT 0x29
-#define CMD_SCROLL_DOWN_LEFT 0x2A
-
-/**
- * 关闭移动特效
- */
-#define CMD_SCROLL_DISABLE 0x2E
-
-/**
- * 使能移动特效
- */
-#define CMD_SCROLL_ENABLE 0x2F
-
-/**
- * 向下滚动范围设置
- * 
- * 命令格式:
- *      CMD_SCROLL_DOWN_AREA
- *      A ==> 固定的行数,取值范围 0x00 - 0x3F
- *      B ==> 滚动的行数,取值范围 0x00 - 0x3F; 
- *              设定值 > [水平向下移动]中[纵向偏移值]
- *              设定值 > 显示开始行
- * 示例:
- *      0xA3,0x00,0x3F ==> 全屏滚动
- *      0xA3,0x00,0x03 ==> 顶部3行滚动
- */
-#define CMD_SCROLL_DOWN_AREA 0xA3
-
-/** 移动特效命令 **************************************************************/
-
-/**
- * 地址模式
- */
-#define MODE_HORIZONTAL 0x00
-#define MODE_VERTICAL   0x01
-#define MODE_PAGE       0x02
-#define MODE_INVALID    0x03
-
-/**
- * 内存地址映射模式
- * 
- * 命令格式:
- *      CMD_ADDR_MODE
- *      A ==> 模式设定,如 MODE_PAGE(默认)
- */
-#define CMD_ADDR_MODE 0x20
-
-/**
- * 设置列可编辑区域(仅适用于水平和垂直模式)
- * 
- * 命令格式:
- *      CMD_ADDR_COL_RANGE
- *      A ==> 开始列, 取值范围 0x00 - 0x7F（0-127）默认0x00
- *      B ==> 结束列, 取值范围 0x00 - 0x7F（0-127）默认0x00
- */
-#define CMD_ADDR_COL_RANGE 0x21
-
-/**
- * 设置段可编辑区域(仅适用于水平和垂直模式)
- * 
- * 命令格式:
- *      CMD_ADDR_PAGE_RANGE
- *      A ==> 开始段, 取值范围 0x00 - 0x07 默认0x00
- *      B ==> 结束段, 取值范围 0x00 - 0x07 默认0x00
- */
-#define CMD_ADDR_PAGE_RANGE 0x22
-
-/**
- * 数据写入起始段设定(仅适用于段模式)
- */
-#define CMD_ADDR_PAGE_START_MASK 0xB0
-#define CMD_ADDR_PAGE_START_0 0xB0
-#define CMD_ADDR_PAGE_START_1 0xB1
-#define CMD_ADDR_PAGE_START_2 0xB2
-#define CMD_ADDR_PAGE_START_3 0xB3
-#define CMD_ADDR_PAGE_START_4 0xB4
-#define CMD_ADDR_PAGE_START_5 0xB5
-#define CMD_ADDR_PAGE_START_6 0xB6
-#define CMD_ADDR_PAGE_START_7 0xB7
-
-/**
- * 数据写入起始列设定,分别为高4位与低4位掩码(仅适用于段模式)
- * 默认0x0, {0x10,0x03}==>从第4列开始写数据
- */
-#define CMD_ADDR_COL_START_HIGH_MASK 0x10
-#define CMD_ADDR_COL_START_LOW_MASK  0x00
-
-/** 地址设定命令 **************************************************************/
-
-/**
- * 设置显示内存起始位置
- * 
- * 取值范围: 0x00 - 0x3F(0-63) 默认为0x00
- * 命令范围: CMD_HARD_START_LINE_MASK | 0x00
- */
-#define CMD_HARD_START_LINE_MASK 0x40
-
-/**
- * 设置列映射SEG0的地址为0(默认)
- */
-#define CMD_HARD_MAP_COL_0      0xA0
-/**
- * 设置列映射SEG0的地址为127
- */
-#define CMD_HARD_MAP_COL_127    0xA1 
-
-/**
- * 设置多路复用率
- * 
- * 命令格式:
- *      CMD_HARD_MUX
- *      A ==> 复用率, 取值范围 0x0F - 0x3F(15-63) 默认0x3F
- */
-#define CMD_HARD_MUX 0xA8
-
-/**
- * 设置公共端扫描方向 正向(默认)
- */
-#define CMD_HARD_SCAN_DIRECT_NORMAL 0xC0
-
-/**
- * 设置公共端扫描方向 反向
- */
-#define CMD_HARD_SCAN_DIRECT_INVERSE 0xC8
-
-/**
- * 设置纵向公共端偏移量
- * 
- * 命令格式:
- *      CMD_HARD_VERTICAL_OFFSET
- *      A ==> 偏移量, 取值范围 0x00 - 0x3F(0-63) 默认0x00
- */
-#define CMD_HARD_VERTICAL_OFFSET 0xD3
-
-/**
- * 配置公共端口属性
- * 
- * 命令格式:
- *      CMD_HARD_COM_CONFIG
- *      A ==> 命令序列 0 0 A5 A4 0 0 1 0
- *          A5 => 0:禁用公共端口左右交换(默认)  1:公共端口左右交换
- *          A4 => 0:连续 1:间隔(默认)
- */
-#define CMD_HARD_COM_CONFIG 0xDA
-
-/** 硬件设定命令 **************************************************************/
-
-/**
- * 时钟设定
- * 
- * 命令格式:
- *      CMD_TIME_CLOCK
- *      A ==> A7 A6 A5 A4 A3 A2 A1 A0
- *          A[3:0] 分频计数器,显示频率=时钟频率/(设定值+1),取值范围 0-15(1-16的时钟周期) 默认 0
- *          A[7:4] 时钟周期,值越大频率越高,取值范围 0-15(1-16) 默认 (0x8 << 4)
- */
-#define CMD_TIME_CLOCK 0xD5
-
-/**
- * 供电时间设置
- * 
- * 命令格式:
- *      CMD_POWER_PRECHARGE
- *      A ==> A7 A6 A5 A4 A3 A2 A1 A0
- *          A[3:0] 第一阶段供电时钟周期数,取值范围 1-15 默认 2
- *          A[7:4] 第二阶段供电时钟周期数,取值范围 1-15 默认 2
- */
-#define CMD_POWER_PRECHARGE 0xD9
-
-/**
- * 电压设定参数
- */
-#define VOLTAGE_0_DOT_65X 0x00
-#define VOLTAGE_0_DOT_77X 0x20
-#define VOLTAGE_0_DOT_83X 0x30
-
-/**
- * 电压设定
- * 
- * 命令格式:
- *      CMD_POWER_VOLTAGE
- *      A ==> 电压值,默认VOLTAGE_0_DOT_77X 0.77Vcc
- */
-#define CMD_POWER_VOLTAGE 0xDB
-
-/**
- * 空指令
- */
-#define CMD_NOP 0xE3
-/** 时钟/供电设定命令 *********************************************************/
-
-/**
- * 读取命令状态指示
- */
-#define CMD_READ_DISPLAY_ON     0x00
-#define CMD_READ_DISPLAY_OFF    0x40
+uint8_t screen[8][128]={0};
 
 /**
  * 写入一个命令
@@ -327,63 +35,400 @@ void writeData(uint8_t data){
  * 初始I2C设定
  */
 void initDevice(){
-    bcm2835_i2c_set_baudrate(100000);
+    bcm2835_i2c_set_baudrate(SSD1306_I2C_RATE);
     bcm2835_i2c_setSlaveAddress(SSD1306_I2C_ADDR);
 }
 
-void init(){
-    //关闭屏幕
-    writeCommand(CMD_DISPLAY_OFF);
-    //内存地址模式
-    writeCommand(CMD_ADDR_MODE);
-    writeCommand(MODE_PAGE);
-    //段模式起始地址
-    writeCommand(CMD_ADDR_PAGE_START_0);
-    //设置扫描方向
-    writeCommand(CMD_HARD_SCAN_DIRECT_INVERSE);
-    //设置列数据写入起始位置
-    writeCommand(CMD_ADDR_COL_START_LOW_MASK);
-    writeCommand(CMD_ADDR_COL_START_HIGH_MASK);
-    //设置显示初始地址
-    writeCommand(CMD_HARD_START_LINE_MASK);
-    //设置对比度
-    writeCommand(CMD_DISPLAY_CONTRAST);
-    writeCommand(0x7f);
-    //设置列反转
-    writeCommand(CMD_HARD_MAP_COL_0);
-    //设置显示模式
-    writeCommand(CMD_DISPLAY_NORMAL);
-    //设置复用率
-    writeCommand(CMD_HARD_MUX);
-    writeCommand(0x3F);
-    //显示内存信息
-    writeCommand(CMD_DISPLAY_ALL);
-    // writeCommand(CMD_DISPLAY_RAM);
-    //设置显示行偏移
-    writeCommand(CMD_HARD_VERTICAL_OFFSET);
-    writeCommand(0x00);
-    //设置分频率
-    writeCommand(CMD_TIME_CLOCK);
-    writeCommand(0xF0);
-    //设置电源
-    writeCommand(CMD_POWER_PRECHARGE);
-    writeCommand(0x22);
-    //设置输出引脚
-    writeCommand(CMD_HARD_COM_CONFIG);
-    writeCommand(0x12);
-    //设置电压
-    writeCommand(CMD_POWER_VOLTAGE);
-    writeCommand(VOLTAGE_0_DOT_77X);
-    //点亮屏幕
+/** 通讯设定 ******************************************************************/
+
+/**
+ * 打开屏幕
+ */
+void openScreen(){
+    //设置电荷泵
+    writeCommand(CMD_POWER_CHARGE_PUMP);
+    writeCommand(CHARGE_PUMP_ON);
     writeCommand(CMD_DISPLAY_ON);
+}
+
+/**
+ * 关闭屏幕
+ */
+void closeScreen(){
+    writeCommand(CMD_POWER_CHARGE_PUMP);
+    writeCommand(CHARGE_PUMP_OFF);
+    writeCommand(CMD_DISPLAY_OFF);
+}
+
+/**
+ * 设置渲染模式
+ * 
+ * 参数:
+ *      mode ==> MODE_HORIZONTAL(水平),MODE_VERTICAL(垂直),MODE_PAGE(页 默认值)
+ */
+void setRenderMode(uint8_t mode){
+    writeCommand(CMD_ADDR_MODE);
+    writeCommand(mode);
+}
+
+/**
+ * 设置可编辑区域(仅适用与水平和垂直模式)
+ * 
+ * 参数:
+ *      start_page : 编辑区域的页起始地址,取值范围 0-7 默认为0
+ *      end_page : 编辑区域的页结束地址,取值范围 0-7 默认为7
+ *      start_col : 编辑区域的列起始地址,取值范围 0-127 默认为0
+ *      end_col : 编辑区域的列结束地址,取值范围 0-127 默认为127
+ */
+void setRange(uint8_t start_page,uint8_t end_page,uint8_t start_col,uint8_t end_col){
+    writeCommand(CMD_ADDR_PAGE_RANGE);
+    writeCommand(start_page);
+    writeCommand(end_page);
+    writeCommand(CMD_ADDR_COL_RANGE);
+    writeCommand(start_col);
+    writeCommand(end_col);
+}
+
+/**
+ * 设置编辑页的起始位置(仅适用页模式)
+ * 
+ * 参数:
+ *      page : 页序号,取值范围 0-7 默认为0
+ *      col : 列序号,取值范围 0-127 默认为0
+ */
+void setPos(uint8_t page,uint8_t col){
+    writeCommand(CMD_ADDR_PAGE_START_MASK | page);
+    writeCommand(CMD_ADDR_COL_START_LOW_MASK | (col & 0x0F));
+    writeCommand(CMD_ADDR_COL_START_HIGH_MASK | ((col & 0xF0)>>4));
+}
+
+/**
+ * 设置对比度
+ * 
+ * 参数:
+ *      level: 值越大 越清晰 默认0x7F
+ */
+void setContrast(uint8_t level){
+    writeCommand(CMD_DISPLAY_CONTRAST);
+    writeCommand(level);
+}
+
+/**
+ * 设置供电电压
+ * 
+ * 参数:
+ *      voltage : 电压值为n * Vcc,可选参数VOLTAGE_0_DOT_65X,VOLTAGE_0_DOT_77X(默认),VOLTAGE_0_DOT_83X
+ */
+void setVoltage(uint8_t voltage){
+    writeCommand(CMD_POWER_VOLTAGE);
+    writeCommand(voltage);
+}
+
+/**
+ * 忽略内训显示
+ * 
+ * 参数:
+ *      flag : SSD1306_FALSE ==> 显示内存数据, SSD1306_TRUE ==>全屏显示
+ */
+void setIgnoreRAM(uint8_t flag){
+    if(flag){
+        writeCommand(CMD_DISPLAY_ALL);
+    }else{
+        writeCommand(CMD_DISPLAY_RAM);
+    }
+}
+
+/**
+ * 设置显示翻转
+ * 
+ * 参数:
+ *      h : SSD1306_TRUE ==> 左右翻转
+ *      v : SSD1306_TRUE ==> 上下翻转
+ */
+void setReverse(uint8_t h,uint8_t v){
+    if(v){
+        h=h?0:1;
+        writeCommand(CMD_HARD_SCAN_DIRECT_INVERSE);
+    }else{
+        writeCommand(CMD_HARD_SCAN_DIRECT_NORMAL);
+    }
+    if(h){
+        writeCommand(CMD_HARD_MAP_COL_127);
+    }else{
+        writeCommand(CMD_HARD_MAP_COL_0);
+    }
+}
+
+/**
+ * 设置内存映射
+ * 
+ *  灯序号 行序号(抽象编号) 内存序号
+ * 
+ *  行序号=(内存序号+start_line) % 64
+ *  灯序号=(行序号+offset) % 64
+ *  行序号<rows 的为有效数据,其余数据全部显示黑色
+ * 
+ *  灯序号=((内存序号 + start_line) % 64 + offset) % 64
+ *  (内存数据循环上移动start_line后获取前rows行数据,再上移offset)
+ * 参数:
+ *      start_line : 内存相对行号的偏移量,取值范围0-63,默认为0
+ *      offset : 显示相对行号的偏移量,取值范围0-63,默认为0
+ *      rows : 有效的行号上限(16-64) 默认 64
+ */
+void setMapping(uint8_t start_line,uint8_t offset,uint8_t rows){
+    writeCommand(CMD_HARD_START_LINE_MASK | start_line);
+    writeCommand(CMD_HARD_VERTICAL_OFFSET);
+    writeCommand(offset);
+    writeCommand(CMD_HARD_MUX);
+    writeCommand(rows-1);
+}
+
+/**
+ * 设置显示反色
+ */
+void setPointInvert(uint8_t flag){
+    if(flag){
+        writeCommand(CMD_DISPLAY_INVERSE);
+    }else{
+        writeCommand(CMD_DISPLAY_NORMAL);
+    }
+}
+
+/**
+ * 设置频率
+ * 
+ * 参数:
+ *      rate : 频率设定,值越大频率越高,取值范围 0-15,默认为8
+ *      div : 分频系数,取值范围 1-16,默认为1
+ */
+void setFrequency(uint8_t rate,uint8_t div){
+    writeCommand(CMD_TIME_CLOCK);
+    writeCommand(((div-1) & 0x0F) | ((rate & 0x0F)<<4));
+}
+
+/**
+ * 设置供电时间分配
+ * 
+ * 参数:
+ *      phase1: 第一阶段指令周期数,取值范围1-15,默认2
+ *      phase2: 第一阶段指令周期数,取值范围1-15,默认2
+ */
+void setPeriodPreCharge(uint8_t phase1,uint8_t phase2){
+    writeCommand(CMD_POWER_PRECHARGE);
+    writeCommand(((phase2 & 0x0F)<<4) | (phase1 & 0x0F));
+}
+
+/**
+ * 设置缩放特效
+ * 
+ * 参数:
+ *      flag : SSD1306_TRUE 启用缩放特性
+ */
+void setGraphicZOOM(uint8_t flag){
+    writeCommand(CMD_GRAPHIC_ZOOM);
+    flag=flag?ZOOM_ON:ZOOM_OFF;
+    writeCommand(flag);
+}
+
+/**
+ * 设置渐隐特效
+ * 
+ * 参数:
+ *      mode: FADE_OFF,FADE_ONCE,FADE_LOOP 默认为 FADE_OFF
+ *      frame: FADE_FRAME_8
+ */
+void setGraphicFade(uint8_t mode,uint8_t frame){
+    writeCommand(CMD_GRAPHIC_FADE);
+    writeCommand(mode | frame);
+}
+
+/**
+ * 设置水平滚动特效
+ * 
+ * 参数:
+ *      direct : 方向 SCROLL_DIRECT_LEFT
+ *      start_page : 开始页
+ *      end_page : 结束页
+ *      frame : 帧数
+ */
+void setGraphicScroll_H(uint8_t direct,uint8_t start_page,uint8_t end_page,uint8_t frame){
+    writeCommand(direct);
+    writeCommand(0x00);
+    writeCommand(start_page);
+    writeCommand(frame);
+    writeCommand(end_page);
+    writeCommand(0x00);
+    writeCommand(0xFF);
+}
+
+/**
+ * 设置对角线滚动特效
+ * 
+ * 参数:
+ *      direct : 方向 CMD_SCROLL_DOWN_LEFT
+ *      start_page : 开始页
+ *      end_page : 结束页
+ *      frame : 帧数
+ *      offset: 偏移行数
+ */
+void setGraphicScroll_HV(uint8_t direct,uint8_t start_page,uint8_t end_page,uint8_t frame,uint8_t offset){
+    writeCommand(direct);
+    writeCommand(0x00);
+    writeCommand(start_page);
+    writeCommand(frame);
+    writeCommand(end_page);
+    writeCommand(offset);
+}
+
+/**
+ * 设置垂直滚动区域
+ * 
+ * 参数:
+ *      fix_rows : 固定的行数
+ *      scroll_rows : 滚动的行数
+ */
+void setGraphicScrollRange_V(uint8_t fix_rows,uint8_t scroll_rows){
+    writeCommand(CMD_SCROLL_DOWN_AREA);
+    writeCommand(fix_rows);
+    writeCommand(scroll_rows);
+}
+
+/**
+ * 启动滚动特效
+ */
+void setGraphicScrollEnable(){
+    writeCommand(CMD_SCROLL_ENABLE);
+}
+
+/**
+ * 关闭滚动特效
+ */
+void setGraphicScrollDisable(){
+    writeCommand(CMD_SCROLL_DISABLE);
+}
+
+/**
+ * 引脚配置
+ * 
+ * 参数:
+ *      alternative: SSD1306_TRUE ==>交替 ,SSD1306_FALSE ==> 连续 ,默认SSD1306_TRUE
+ *      remap: SSD1306_TRUE ==> 左右交换,默认SSD1306_FALSE
+ */
+void setPinConfig(uint8_t alternative,uint8_t remap){
+    uint8_t cmd=0x02;
+    cmd|=alternative?0x10:0x00;
+    cmd|=remap?0x20:0x00;
+
+    writeCommand(CMD_HARD_COM_CONFIG);
+    writeCommand(cmd);
+}
+
+/**
+ * 更新屏幕区域
+ */
+void updateScreenRange(uint8_t data[][128],uint8_t start_page,uint8_t end_page,uint8_t start_col,uint8_t end_col){
+    uint8_t r,c;
+    setRenderMode(MODE_HORIZONTAL);
+    setRange(start_page,end_page,start_col,end_col);
+    for(r=start_page;r<=end_page;r++)
+        for(c=start_col;c<=end_col;c++){
+            writeData(data[r][c]);
+        }
+}
+
+/**
+ * 更新屏幕数据
+ */
+void updateScreen(uint8_t data[][128]){
+    updateScreenRange(data,0,7,0,127);
+}
+
+// void drawPoint(uint8_t x,uint8_t y){
+//     setRenderMode(MODE_PAGE);
+//     setPos(x/8,y);
+//     writeData(0xFF);
+// }
+
+/**
+ * 初始化设置
+ */
+void reset(){
+    //关闭屏幕
+    closeScreen();
+
+    //清空屏幕
+    updateScreen(screen);
+
+    //设置扫描方向
+    setReverse(SSD1306_FALSE,SSD1306_TRUE);
+
+    //设置映射关系
+    setMapping(0,0,64);
+
+    //设置对比度
+    setContrast(127);
+
+    //设置显示模式
+    setPointInvert(SSD1306_FALSE);
+
+    //显示内存信息
+    setIgnoreRAM(SSD1306_FALSE);
+
+    //设置分频率
+    setFrequency(8,1);
+
+    //设置电源
+    setPeriodPreCharge(2,2);
+
+    //设置输出引脚
+    setPinConfig(SSD1306_TRUE,SSD1306_FALSE);
+ 
+    //设置电压
+    setVoltage(VOLTAGE_0_DOT_77X);
+
+    //设置特效关闭
+    setGraphicScrollDisable();
+    setGraphicFade(FADE_OFF,FADE_FRAME_8);
+    setGraphicZOOM(SSD1306_FALSE);
+}
+
+void sample(){
+    uint8_t i;
+    initDevice();
+    reset();
+    openScreen();
+
+    for(i=0;i<64;i++){
+        drawPoint(i,0);
+        // bcm2835_delay(10);
+        updateScreen(screen);
+    }
+    for(i=0;i<64;i++){
+        drawPoint(63,i);
+        // bcm2835_delay(10);
+        updateScreen(screen);
+    }
+    for(i=0;i<64;i++){
+        clearPoint(i,0);
+        // bcm2835_delay(10);
+        updateScreen(screen);
+    }
+    for(i=0;i<64;i++){
+        clearPoint(63,i);
+        // bcm2835_delay(10);
+        updateScreen(screen);
+    }
+    drawRectangle(0,0,2,2);
+    drawRectangle(2,2,10,10);
+    updateScreen(screen);
+    closeScreen();
 }
 
 int main(void){
     bcm2835_init();
     bcm2835_i2c_begin();
 
-    initDevice();
-    init();
+    sample();
 
     bcm2835_i2c_end();
     bcm2835_close();

@@ -1,7 +1,8 @@
-build:ssd1306.c
-	gcc ./ssd1306.c -o ssd1306 -lbcm2835
-	sudo ./ssd1306
-run:
-	sudo ./ssd1306
+build:canvas.c ssd1306.c ssd1306.h
+	gcc ./ssd1306.c ./canvas.c -o oled -lbcm2835
+
+run:build
+	sudo ./oled
+	
 clean:
-	rm ./ssd1306
+	rm ./oled
