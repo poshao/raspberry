@@ -1,5 +1,6 @@
 build:bme280.c
 	gcc ./bme280.c -o bme280 -lbcm2835
+	sudo ./bme280
 run:bme280
 	sudo ./bme280
 clean:

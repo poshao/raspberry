@@ -482,12 +482,14 @@ void sample(){
 
 
 int main(int argc,char ** argv){
+    uint8_t i;
     //bcm2835初始化I2C总线
     bcm2835_init();
     bcm2835_i2c_begin();
     
     //执行示例
-    sample();
+    for(i=0;i<10;i++)
+        sample();
 
     bcm2835_i2c_end();
     bcm2835_close();
