@@ -387,4 +387,5 @@ extern uint8_t screen[8][128];
 void clearPoint(uint8_t x,uint8_t y);
 void drawPoint(uint8_t x,uint8_t y);
 void drawRectangle(uint8_t x,uint8_t y,uint8_t width,uint8_t height);
+void drawCircle(uint8_t x,uint8_t y,uint8_t r);
 #endif

@@ -343,6 +343,16 @@ void updateScreen(uint8_t data[][128]){
     updateScreenRange(data,0,7,0,127);
 }
 
+/**
+ * 清空屏幕
+ */
+void cleanScreen(){
+    uint8_t i,j;
+    for(i=0;i<8;i++)
+        for(j=0;j<128;j++){
+            screen[i][j]=0x00;
+        }
+}
 // void drawPoint(uint8_t x,uint8_t y){
 //     setRenderMode(MODE_PAGE);
 //     setPos(x/8,y);
@@ -376,13 +386,13 @@ void reset(){
 
     //设置分频率
     setFrequency(8,1);
-
+    // setFrequency(8,8);
     //设置电源
     setPeriodPreCharge(2,2);
 
     //设置输出引脚
     setPinConfig(SSD1306_TRUE,SSD1306_FALSE);
- 
+
     //设置电压
     setVoltage(VOLTAGE_0_DOT_77X);
 
@@ -392,36 +402,58 @@ void reset(){
     setGraphicZOOM(SSD1306_FALSE);
 }
 
+/**
+ * 示例代码
+ */
 void sample(){
-    uint8_t i;
+    uint8_t i,j;
     initDevice();
     reset();
     openScreen();
 
-    for(i=0;i<64;i++){
-        drawPoint(i,0);
-        // bcm2835_delay(10);
-        updateScreen(screen);
-    }
-    for(i=0;i<64;i++){
-        drawPoint(63,i);
-        // bcm2835_delay(10);
-        updateScreen(screen);
-    }
-    for(i=0;i<64;i++){
-        clearPoint(i,0);
-        // bcm2835_delay(10);
-        updateScreen(screen);
-    }
-    for(i=0;i<64;i++){
-        clearPoint(63,i);
-        // bcm2835_delay(10);
-        updateScreen(screen);
-    }
-    drawRectangle(0,0,2,2);
-    drawRectangle(2,2,10,10);
+    // for(i=0;i<64;i++){
+    //     drawPoint(i,0);
+    //     // bcm2835_delay(10);
+    //     updateScreen(screen);
+    // }
+    // for(i=0;i<64;i++){
+    //     drawPoint(63,i);
+    //     // bcm2835_delay(10);
+    //     updateScreen(screen);
+    // }
+    // for(i=0;i<64;i++){
+    //     clearPoint(i,0);
+    //     // bcm2835_delay(10);
+    //     updateScreen(screen);
+    // }
+    // for(i=0;i<64;i++){
+    //     clearPoint(63,i);
+    //     // bcm2835_delay(10);
+    //     updateScreen(screen);
+    // }
+    // drawRectangle(0,0,2,2);
+    // drawRectangle(2,2,10,10);
+
+    for(i=0;i<100;i++){
+    cleanScreen();
+
+    drawCircle(63,31,0+i);
+    drawCircle(63,31,10+i);
+    drawCircle(63,31,20+i);
+    drawCircle(63,31,30+i);
+    drawCircle(63,31,40+i);
+    drawCircle(63,31,50+i);
+    drawCircle(63,31,60+i);
+    drawCircle(63,31,70+i);
+    if(i==10) i=0;
+    // drawRectangle(53,26,21,10);
+    // drawRectangle(43,21,41,20);
+    // drawRectangle(33,16,61,30);
+
     updateScreen(screen);
-    closeScreen();
+    bcm2835_delay(50);
+    }
+    // closeScreen();
 }
 
 int main(void){
