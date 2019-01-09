@@ -388,4 +388,6 @@ void clearPoint(uint8_t x,uint8_t y);
 void drawPoint(uint8_t x,uint8_t y);
 void drawRectangle(uint8_t x,uint8_t y,uint8_t width,uint8_t height);
 void drawCircle(uint8_t x,uint8_t y,uint8_t r);
+void drawLine(uint8_t x1,uint8_t y1,uint8_t x2,uint8_t y2);
+void drawPolygon(uint8_t c,uint8_t x,uint8_t y,uint8_t r);
 #endif

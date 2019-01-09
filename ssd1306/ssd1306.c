@@ -434,25 +434,34 @@ void sample(){
     // drawRectangle(0,0,2,2);
     // drawRectangle(2,2,10,10);
 
-    for(i=0;i<100;i++){
-    cleanScreen();
+    // for(i=0;i<100;i++){
+    // cleanScreen();
 
-    drawCircle(63,31,0+i);
-    drawCircle(63,31,10+i);
-    drawCircle(63,31,20+i);
-    drawCircle(63,31,30+i);
-    drawCircle(63,31,40+i);
-    drawCircle(63,31,50+i);
-    drawCircle(63,31,60+i);
-    drawCircle(63,31,70+i);
-    if(i==10) i=0;
-    // drawRectangle(53,26,21,10);
-    // drawRectangle(43,21,41,20);
-    // drawRectangle(33,16,61,30);
+    // drawCircle(63,31,0+i);
+    // drawCircle(63,31,10+i);
+    // drawCircle(63,31,20+i);
+    // drawCircle(63,31,30+i);
+    // drawCircle(63,31,40+i);
+    // drawCircle(63,31,50+i);
+    // drawCircle(63,31,60+i);
+    // drawCircle(63,31,70+i);
+    // if(i==10) i=0;
 
+    // updateScreen(screen);
+    // bcm2835_delay(50);
+    // }
+    // drawCircle(64,32,25);
+    // drawLine(0,0,127,63);
+    // drawLine(0,63,127,0);
+
+    drawPolygon(3,64,32,10);
+    drawPolygon(4,64,32,15);
+    drawPolygon(5,64,32,20);
+    drawPolygon(6,64,32,25);
+    // drawLine(64,52,81,22);
+    // drawLine(81,22,46,22);
+    // drawLine(46,22,64,52);
     updateScreen(screen);
-    bcm2835_delay(50);
-    }
     // closeScreen();
 }
 
