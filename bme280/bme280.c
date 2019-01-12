@@ -452,6 +452,7 @@ void execute(){
 void sample(){
     BME280_DATA data;
     BME280_NVM nvm;
+    char rlst[100]={0};
 
     initDevice();
 
@@ -476,7 +477,10 @@ void sample(){
     getCalibData(&nvm);
     getData(&data);
 
+    sprintf(rlst,"sudo ../ssd1306/oled \"温度: %0.2f DegC | 压强: %0.2f hPa | 湿度: %0.2f % \"",calcTemp_double(&data,&nvm),calcPress_double(&data,&nvm)/100.0,calcHum_double(&data,&nvm));
     printf("Temperature: %0.2f DegC \nPressure: %0.2f hPa \nHumidity: %0.2f % \n",calcTemp_double(&data,&nvm),calcPress_double(&data,&nvm)/100.0,calcHum_double(&data,&nvm));
+    system(rlst);
+    bcm2835_delay(1000);
 }
 
 
