@@ -9,7 +9,10 @@
  */
 #include "ssd1306.h"
 
-uint8_t screen[8][128]={0};
+/**
+ * 显示缓存
+ */
+uint8_t screen[SCREEN_ROWS/8][SCREEN_COLUMNS]={0};
 
 /**
  * 写入一个命令
@@ -450,10 +453,10 @@ void sample(){
     // updateScreen(screen);
     // bcm2835_delay(50);
     // }
-    // drawCircle(64,32,25);
-    // drawLine(0,0,127,63);
-    // drawLine(0,63,127,0);
-
+    drawCircle(64,32,25);
+    drawLine(0,0,127,63);
+    drawLine(0,63,127,0);
+    drawRectangle(20,10,20,5);
     drawPolygon(3,64,32,10);
     drawPolygon(4,64,32,15);
     drawPolygon(5,64,32,20);
@@ -461,16 +464,23 @@ void sample(){
     // drawLine(64,52,81,22);
     // drawLine(81,22,46,22);
     // drawLine(46,22,64,52);
+
+    // drawQRcode("hello12345",10,10,0,0);
     updateScreen(screen);
     // closeScreen();
 }
 
-int main(void){
+int main(int argc,char** argv){
     bcm2835_init();
     bcm2835_i2c_begin();
 
     sample();
+    if(argc>1){
+        drawQRcode(argv[1],10,10,0,0);
+        updateScreen(screen);
+    }
 
+    if(argc==2) return 0;
     bcm2835_i2c_end();
     bcm2835_close();
 }

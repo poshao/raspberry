@@ -1,14 +1,26 @@
+/**
+ * SSD1306 OLED屏幕控制
+ */
+
 #ifndef __SSD1306__
 #define __SSD1306__
 
 #include <bcm2835.h>
 #include <stdio.h>
+//图形库
+#include "canvas.h"
 
 //调试模式
 #define SSD1306_DEBUG
 #define SSD1306_I2C_ADDR 0x3C
 #define SSD1306_I2C_RATE 1000000
 
+#define SCREEN_ROWS 64
+#define SCREEN_COLUMNS 128
+
+/**
+ * 基本常量
+ */
 #define SSD1306_TRUE 0x01
 #define SSD1306_FALSE 0x00
 
@@ -379,15 +391,4 @@
 #define CMD_READ_DISPLAY_OFF    0x40
 /** 状态读取命令 ***××××*******************************************************/
 
-/**
- * 显示缓存
- */
-extern uint8_t screen[8][128];
-
-void clearPoint(uint8_t x,uint8_t y);
-void drawPoint(uint8_t x,uint8_t y);
-void drawRectangle(uint8_t x,uint8_t y,uint8_t width,uint8_t height);
-void drawCircle(uint8_t x,uint8_t y,uint8_t r);
-void drawLine(uint8_t x1,uint8_t y1,uint8_t x2,uint8_t y2);
-void drawPolygon(uint8_t c,uint8_t x,uint8_t y,uint8_t r);
 #endif
