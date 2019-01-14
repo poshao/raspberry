@@ -8,11 +8,40 @@
  *     sudo ./oled
  */
 #include "ssd1306.h"
+/**
+ * 使用IIC接口
+ * 
+ * 接线说明:
+ * OLED        raspberry
+ * SDA  ==>     SDA.1(3)
+ * SCL  ==>     SDA.1(5)
+ * VCC  ==>     3.3V(1)
+ * GND  ==>     0V(9)
+ */
+#define SSD1306_IIC
+
+// #define SSD1306_SPI_3
+
+/**
+ * 使用4线SPI
+ * 
+ * 接线规则:
+ * OLED         raspberry
+ * VCC  ==>     3.3V(17)
+ * GND  ==>     0V(25)
+ * SCLK ==>     SCLK(23)
+ * SDIN ==>     MOSI(21)
+ * D/C# ==>     CE0(24)
+ * CS#  ==>     0V(20)
+ */
+// #define SSD1306_SPI_4
 
 /**
  * 显示缓存
  */
 uint8_t screen[SCREEN_ROWS/8][SCREEN_COLUMNS]={0};
+
+#if defined(SSD1306_IIC)
 
 /**
  * 写入一个命令
@@ -41,6 +70,39 @@ void initDevice(){
     bcm2835_i2c_set_baudrate(SSD1306_I2C_RATE);
     bcm2835_i2c_setSlaveAddress(SSD1306_I2C_ADDR);
 }
+
+#elif defined(SSD1306_SPI_3)
+
+
+#elif defined(SSD1306_SPI_4)
+
+/**
+ * 写入一个命令
+ */
+void writeCommand(uint8_t cmd){
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
+    bcm2835_spi_writenb(&data,1);
+}
+
+/**
+ * 写入一个数据
+ */
+void writeData(uint8_t data){
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);
+    bcm2835_spi_writenb(&data,1);
+}
+
+/**
+ * 初始I2C设定
+ */
+void initDevice(){
+    bcm2835_spi_set_speed_hz(2000000);
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE2);
+}
+
+#endif
+
+
 
 /** 通讯设定 ******************************************************************/
 
@@ -472,8 +534,11 @@ void sample(){
 
 int main(int argc,char** argv){
     bcm2835_init();
+#if defined(SSD1306_IIC)
     bcm2835_i2c_begin();
-
+#else
+    bcm2835_spi_begin();
+#endif
     sample();
     if(argc>1){
         drawQRcode(argv[1],10,10,0,0);
@@ -481,6 +546,12 @@ int main(int argc,char** argv){
     }
 
     if(argc==2) return 0;
+
+#if defined(SSD1306_IIC)
     bcm2835_i2c_end();
+#else
+    bcm2835_spi_end();
+#endif
+    
     bcm2835_close();
 }
