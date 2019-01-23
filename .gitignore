@@ -1,3 +1,6 @@
 .vscode
 /bme280/bme280
 /ssd1306/oled
+
+cmake-build-debug
+.idea
